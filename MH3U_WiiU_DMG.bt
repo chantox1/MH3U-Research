@@ -1,0 +1,81 @@
+//------------------------------------------------------
+//--- 010 Editor v11.0.1 Binary Template
+//
+//      File: .DMG
+//   Authors: Chantox
+//   Version: 0.1
+//   Purpose: MH3U string files
+//  ID Bytes: 00444D4700010201000000010000000000000000
+//------------------------------------------------------
+BigEndian();
+DisplayFormatHex();
+local int i;
+
+typedef char magic[0x14];
+
+string checkSig(magic &number) {
+    if (number == "\x00DMG\x00\x01\x02\x01\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00") {
+        return "Signature correct.";
+    }
+    return "! Signature incorrect !";
+}
+
+typedef struct{
+    magic number <comment=checkSig>;
+    int entryCount;
+    int stringCount;
+    int entryNameSize;
+    int strTableSize;
+    int fnameLen;
+    char fname[fnameLen];
+    char pad <hidden=true>;
+} DMGHeader;
+
+struct DMGString {
+    string str;
+};
+
+string printDMGStr(DMGString &DMGstr) {
+    return DMGstr.str;
+}
+
+typedef struct{
+    local uint returnAdd = FTell();
+    FSeek(entryNamePos);
+    string name <hidden=true>;
+    entryNamePos = FTell();
+    FSeek(returnAdd);
+    int strStart;
+    int unk;
+    if (FTell() < entryNameAdd) {
+        local int j;
+        local uint strStop = ReadUInt();
+        returnAdd = FTell();
+        FSeek(strPos);
+        for (j=strStart; j<strStop; j++) {
+            DMGString str <read=printDMGStr>;
+        }
+        strPos = FTell();
+        FSeek(returnAdd);
+    }
+    else {
+        FSeek(strPos);
+        while (FTell() < eof) {
+            DMGString str <read=printDMGStr>;
+        }
+    }
+} DMGEntry;
+
+string printName(DMGEntry &entry) {
+    return entry.name;
+}
+
+DMGHeader Header;
+local uint entryNameAdd = 0x31 + Header.fnameLen
+                        + 8*(Header.entryCount-1);
+local uint entryNamePos = entryNameAdd;
+local uint strPos = entryNameAdd + Header.entryNameSize;
+local uint eof = strPos + Header.strTableSize;
+for (i=0; i<Header.entryCount; i++) {
+    DMGEntry entry <read=printName>;
+}
