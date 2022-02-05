@@ -9,18 +9,17 @@
 //------------------------------------------------------
 BigEndian();
 DisplayFormatHex();
-local int i;
 
 typedef char magic[0x14];
 
-string checkSig(magic &number) {
+string checkSig(magic number) {
     if (number == "\x00DMG\x00\x01\x02\x01\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00") {
         return "Signature correct.";
     }
     return "! Signature incorrect !";
 }
 
-typedef struct{
+struct DMGHeader {
     magic number <comment=checkSig>;
     int entryCount;
     int stringCount;
@@ -29,17 +28,11 @@ typedef struct{
     int fnameLen;
     char fname[fnameLen];
     char pad <hidden=true>;
-} DMGHeader;
-
-struct DMGString {
-    string str;
 };
 
-string printDMGStr(DMGString &DMGstr) {
-    return DMGstr.str;
-}
+struct DMGString;
 
-typedef struct{
+struct DMGEntry {
     local uint returnAdd = FTell();
     FSeek(entryNamePos);
     string name <hidden=true>;
@@ -48,9 +41,9 @@ typedef struct{
     int strStart;
     int unk;
     if (FTell() < entryNameAdd) {
+        returnAdd = FTell();
         local int j;
         local uint strStop = ReadUInt();
-        returnAdd = FTell();
         FSeek(strPos);
         for (j=strStart; j<strStop; j++) {
             DMGString str <read=printDMGStr>;
@@ -64,18 +57,27 @@ typedef struct{
             DMGString str <read=printDMGStr>;
         }
     }
-} DMGEntry;
+};
 
 string printName(DMGEntry &entry) {
     return entry.name;
 }
 
+struct DMGString {
+    string str;
+};
+
+string printDMGStr(DMGString &DMGstr) {
+    return DMGstr.str;
+}
+
 DMGHeader Header;
-local uint entryNameAdd = 0x31 + Header.fnameLen
-                        + 8*(Header.entryCount-1);
+local uint entryNameAdd = 0x29 + Header.fnameLen
+                        + 8*(Header.entryCount);
 local uint entryNamePos = entryNameAdd;
 local uint strPos = entryNameAdd + Header.entryNameSize;
 local uint eof = strPos + Header.strTableSize;
+local int i;
 for (i=0; i<Header.entryCount; i++) {
     DMGEntry entry <read=printName>;
 }
